@@ -4,7 +4,6 @@ import 'package:chat_app/screens/splash_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_app_check/firebase_app_check.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -12,11 +11,11 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Disable Firebase App Check in debug mode
-  await FirebaseAppCheck.instance.activate(
-    androidProvider: AndroidProvider.debug, // Allow debug mode for Android
-    appleProvider: AppleProvider.debug, // Allow debug mode for iOS
-    webProvider: ReCaptchaV3Provider(''), // Empty provider for web
-  );
+  // await FirebaseAppCheck.instance.activate(
+  //   androidProvider: AndroidProvider.debug, // Allow debug mode for Android
+  //   appleProvider: AppleProvider.debug, // Allow debug mode for iOS
+  //   webProvider: ReCaptchaV3Provider(''), // Empty provider for web
+  // );
 
   runApp(const App());
 }
