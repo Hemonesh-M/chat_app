@@ -1,6 +1,7 @@
-// ignore_for_file: use_build_context_synchronously
-
-import 'package:chat_app/screens/chat_screen.dart';
+import 'dart:io';
+import 'package:chat_app/widget/img_upload_gpt.dart';
+import 'package:chat_app/widget/user_image_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -17,31 +18,60 @@ class Auth extends StatefulWidget {
 class _AuthState extends State<Auth> {
   final _formKey = GlobalKey<FormState>();
   bool _isLogin = true;
+  bool _isAuthenticating = false;
   String _enteredEmail = "";
   String _enteredPass = "";
+  String _enterUsername="";
+  File? _profileImage;
+  void onPickProfileImage(File? selectedImage) {
+    _profileImage = selectedImage;
+  }
+
   void _onSubmit() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
+    if (!_isLogin && _profileImage == null) {
+      return;
+    }
     _formKey.currentState!.save();
-    // print(_enteredEmail);
-    // print(_enteredPass);
+
     try {
+      setState(() {
+        _isAuthenticating = true;
+      });
       if (_isLogin) {
         final token = await _firebase.signInWithEmailAndPassword(
           email: _enteredEmail,
           password: _enteredPass,
         );
-
+        print(token);
         // Navigator.of(
         //   context,
         // ).pushReplacement(MaterialPageRoute(builder: (context) => ChatScreen()));
-        // print(UserCredential);
       } else {
-        final UserCredentialdata = await _firebase.createUserWithEmailAndPassword(
-          email: _enteredEmail,
-          password: _enteredPass,
-        );
+        // ignore: non_constant_identifier_names
+        final UserCredentialdata = await _firebase
+            .createUserWithEmailAndPassword(
+              email: _enteredEmail,
+              password: _enteredPass,
+            );
+        print(UserCredentialdata);
+        final profileDownloadURL = await uploadImage(_profileImage!);
+        if (profileDownloadURL == null) {
+          throw ("COuld not get hold of IMAGE URL");
+        }
+        // final storageref= FirebaseStorage.instance
+        //     .ref()
+        //     .child("user_image")
+        //     .child("${UserCredentialdata.user!.uid}.jpg");
+        // storageref.putFile(_profileImage!);
+        // // ignore: no_leading_underscores_for_local_identifiers
+        // final _profileDownloadURL=await storageref.getDownloadURL();
+        FirebaseFirestore.instance
+            .collection("user-metadata")
+            .doc(UserCredentialdata.user!.uid)
+            .set({"email":_enteredEmail,"username":_enterUsername,"imgURL": profileDownloadURL});
       }
     } on FirebaseAuthException catch (error) {
       if (error.code == "email-already-in-use") {
@@ -54,6 +84,9 @@ class _AuthState extends State<Auth> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(error.message ?? "Authentication Failed")),
       );
+      setState(() {
+        _isAuthenticating = false;
+      });
     }
   }
 
@@ -84,6 +117,10 @@ class _AuthState extends State<Auth> {
                     child: Column(
                       // mainAxisSize: MainAxisSize.min,
                       children: [
+                        if (_isLogin == false)
+                          UserImagePicker(
+                            onPickProfileImage: onPickProfileImage,
+                          ),
                         TextFormField(
                           decoration: InputDecoration(
                             hintText: "abc@gmail.com",
@@ -110,6 +147,20 @@ class _AuthState extends State<Auth> {
                             }
                           },
                         ),
+                        if(!_isLogin) 
+                        TextFormField(
+                          decoration: InputDecoration(labelText:"Username"),
+                          enableSuggestions: false,
+                          onSaved: (newValue) {
+                            _enterUsername=newValue!;
+                          },
+                          validator: (value) {
+                            if(value==null || value.trim().length<4 ){
+                              return "Username should atleast be 4 characters long";
+                            }
+                            return null;
+                          },
+                        ),
                         TextFormField(
                           decoration: InputDecoration(
                             label: Text(
@@ -131,15 +182,19 @@ class _AuthState extends State<Auth> {
                           obscureText: true,
                         ),
                         SizedBox(height: 18),
-                        ElevatedButton.icon(
-                          onPressed: _onSubmit,
-                          label: Text(_isLogin ? "Login " : "Sign Up"),
-                          icon: Icon(Icons.save),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                Theme.of(context).colorScheme.primaryContainer,
+                        if (_isAuthenticating) CircularProgressIndicator(),
+                        if (_isAuthenticating == false)
+                          ElevatedButton.icon(
+                            onPressed: _onSubmit,
+                            label: Text(_isLogin ? "Login " : "Sign Up"),
+                            icon: Icon(Icons.save),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  Theme.of(
+                                    context,
+                                  ).colorScheme.primaryContainer,
+                            ),
                           ),
-                        ),
                         TextButton(
                           onPressed: () {
                             setState(() {

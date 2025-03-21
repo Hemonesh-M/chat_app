@@ -1,13 +1,23 @@
 import 'package:chat_app/screens/auth_screen.dart';
 import 'package:chat_app/screens/chat_screen.dart';
+import 'package:chat_app/screens/splash_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Disable Firebase App Check in debug mode
+  await FirebaseAppCheck.instance.activate(
+    androidProvider: AndroidProvider.debug, // Allow debug mode for Android
+    appleProvider: AppleProvider.debug, // Allow debug mode for iOS
+    webProvider: ReCaptchaV3Provider(''), // Empty provider for web
+  );
+
   runApp(const App());
 }
 
@@ -26,7 +36,9 @@ class App extends StatelessWidget {
       home: StreamBuilder(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
-          if (snapshot.hasData) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return SplashScreen();
+          } else if (snapshot.hasData) {
             return ChatScreen();
           } else {
             return Auth();
